@@ -60,7 +60,12 @@ func (h *handler[T]) listen(ctx context.Context) {
 }
 
 func (h *handler[T]) handle(ctx context.Context) {
-	h.fn(ctx, h.queue.All())
+	res := h.fn(ctx, h.queue.All())
+	if len(res) != 0 {
+		for _, e := range res {
+			h.queue.Enqueue(e)
+		}
+	}
 }
 
 func (h *handler[T]) flush() {

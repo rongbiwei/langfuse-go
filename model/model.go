@@ -20,6 +20,7 @@ type IngestionEvent struct {
 	Timestamp time.Time          `json:"timestamp"`
 	Metadata  any
 	Body      any `json:"body"`
+	FailCount int
 }
 
 type Trace struct {

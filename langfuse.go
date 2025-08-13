@@ -3,6 +3,7 @@ package langfuse
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +14,7 @@ import (
 
 const (
 	defaultFlushInterval = 500 * time.Millisecond
+	retryInterval        = 3
 )
 
 type Langfuse struct {
@@ -23,21 +25,26 @@ type Langfuse struct {
 
 func New(ctx context.Context) *Langfuse {
 	client := api.New()
-
 	l := &Langfuse{
 		flushInterval: defaultFlushInterval,
 		client:        client,
 		observer: observer.NewObserver(
 			ctx,
-			func(ctx context.Context, events []model.IngestionEvent) {
-				err := ingest(ctx, client, events)
-				if err != nil {
-					fmt.Println(err)
+			func(ctx context.Context, events []model.IngestionEvent) []model.IngestionEvent {
+				failEvents := make([]model.IngestionEvent, 0)
+				for _, e := range events {
+					if err := ingest(ctx, client, []model.IngestionEvent{e}); err != nil {
+						log.Println("ingest error:" + err.Error())
+						if e.FailCount < 3 {
+							e.FailCount++
+							failEvents = append(failEvents, e)
+						}
+					}
 				}
+				return failEvents
 			},
 		),
 	}
-
 	return l
 }
 
