@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type EventHandler[T any] func(ctx context.Context, events []T)
+type EventHandler[T any] func(ctx context.Context, events []T) []T
 
 type Observer[T any] struct {
 	queue   *queue[T]
