@@ -68,6 +68,19 @@ func (l *Langfuse) Trace(t *model.Trace) (*model.Trace, error) {
 	return t, nil
 }
 
+func (l *Langfuse) TraceWithTime(t *model.Trace, timestamp time.Time) (*model.Trace, error) {
+	t.ID = buildID(&t.ID)
+	l.observer.Dispatch(
+		model.IngestionEvent{
+			ID:        buildID(nil),
+			Type:      model.IngestionEventTypeTraceCreate,
+			Timestamp: timestamp.UTC(),
+			Body:      t,
+		},
+	)
+	return t, nil
+}
+
 func (l *Langfuse) Generation(g *model.Generation, parentID *string) (*model.Generation, error) {
 	if g.TraceID == "" {
 		traceID, err := l.createTrace(g.Name)
@@ -95,6 +108,33 @@ func (l *Langfuse) Generation(g *model.Generation, parentID *string) (*model.Gen
 	return g, nil
 }
 
+func (l *Langfuse) GenerationWithTime(g *model.Generation, parentID *string, timestamp time.Time) (*model.Generation, error) {
+	if g.TraceID == "" {
+		traceID, err := l.createTrace(g.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		g.TraceID = traceID
+	}
+
+	g.ID = buildID(&g.ID)
+
+	if parentID != nil {
+		g.ParentObservationID = *parentID
+	}
+
+	l.observer.Dispatch(
+		model.IngestionEvent{
+			ID:        buildID(nil),
+			Type:      model.IngestionEventTypeGenerationCreate,
+			Timestamp: timestamp.UTC(),
+			Body:      g,
+		},
+	)
+	return g, nil
+}
+
 func (l *Langfuse) GenerationEnd(g *model.Generation) (*model.Generation, error) {
 	if g.ID == "" {
 		return nil, fmt.Errorf("generation ID is required")
@@ -113,6 +153,26 @@ func (l *Langfuse) GenerationEnd(g *model.Generation) (*model.Generation, error)
 		},
 	)
 
+	return g, nil
+}
+
+func (l *Langfuse) GenerationEndWithTime(g *model.Generation, timestamp time.Time) (*model.Generation, error) {
+	if g.ID == "" {
+		return nil, fmt.Errorf("generation ID is required")
+	}
+
+	if g.TraceID == "" {
+		return nil, fmt.Errorf("trace ID is required")
+	}
+
+	l.observer.Dispatch(
+		model.IngestionEvent{
+			ID:        buildID(nil),
+			Type:      model.IngestionEventTypeGenerationUpdate,
+			Timestamp: timestamp.UTC(),
+			Body:      g,
+		},
+	)
 	return g, nil
 }
 
