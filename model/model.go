@@ -2,6 +2,7 @@ package model
 
 import "time"
 
+// IngestionEventType 类型
 type IngestionEventType string
 
 const (
@@ -14,6 +15,7 @@ const (
 	IngestionEventTypeEventCreate      = "event-create"
 )
 
+// IngestionEvent 事件
 type IngestionEvent struct {
 	Type      IngestionEventType `json:"type"`
 	ID        string             `json:"id"`
@@ -23,6 +25,7 @@ type IngestionEvent struct {
 	FailCount int
 }
 
+// Trace 跟踪
 type Trace struct {
 	ID        string     `json:"id,omitempty"`
 	Timestamp *time.Time `json:"timestamp,omitempty"`
@@ -38,6 +41,7 @@ type Trace struct {
 	Public    bool       `json:"public,omitempty"`
 }
 
+// ObservationLevel 观察级别
 type ObservationLevel string
 
 const (
@@ -47,6 +51,7 @@ const (
 	ObservationLevelError   ObservationLevel = "ERROR"
 )
 
+// Generation 生成
 type Generation struct {
 	TraceID             string           `json:"traceId,omitempty"`
 	Name                string           `json:"name,omitempty"`
@@ -68,6 +73,7 @@ type Generation struct {
 	PromptVersion       int              `json:"promptVersion,omitempty"`
 }
 
+// Usage .
 type Usage struct {
 	Input      int       `json:"input,omitempty"`
 	Output     int       `json:"output,omitempty"`
@@ -77,11 +83,26 @@ type Usage struct {
 	OutputCost float64   `json:"outputCost,omitempty"`
 	TotalCost  float64   `json:"totalCost,omitempty"`
 
-	PromptTokens     int `json:"promptTokens,omitempty"`
-	CompletionTokens int `json:"completionTokens,omitempty"`
-	TotalTokens      int `json:"totalTokens,omitempty"`
+	PromptTokens          int `json:"promptTokens,omitempty"`
+	CompletionTokens      int `json:"completionTokens,omitempty"`
+	TotalTokens           int `json:"totalTokens,omitempty"`
+	PromptCacheHitTokens  int `json:"promptCacheHitTokens,omitempty"`
+	PromptCacheMissTokens int `json:"promptCacheMissTokens,omitempty"`
+
+	CompletionAcceptedPredictionTokens int `json:"completionAcceptedPredictionTokens,omitempty"`
+	CompletionAudioTokens              int `json:"completionAudioTokens,omitempty"`
+	CompletionReasoningTokens          int `json:"completionReasoningTokens,omitempty"`
+	CompletionRejectedPredictionTokens int `json:"completionRejectedPredictionTokens,omitempty"`
+	CompletionCachedTokens             int `json:"completionCachedTokens,omitempty"`
+
+	PromptAcceptedPredictionTokens int `json:"promptAcceptedPredictionTokens,omitempty"`
+	PromptAudioTokens              int `json:"promptAudioTokens,omitempty"`
+	PromptReasoningTokens          int `json:"promptReasoningTokens,omitempty"`
+	PromptRejectedPredictionTokens int `json:"promptRejectedPredictionTokens,omitempty"`
+	PromptCachedTokens             int `json:"promptCachedTokens,omitempty"`
 }
 
+// UsageUnit .
 type UsageUnit string
 
 const (
@@ -92,6 +113,7 @@ const (
 	ModelUsageUnitImages       UsageUnit = "IMAGES"
 )
 
+// Score 分数
 type Score struct {
 	ID            string  `json:"id,omitempty"`
 	TraceID       string  `json:"traceId,omitempty"`
@@ -101,6 +123,7 @@ type Score struct {
 	Comment       string  `json:"comment,omitempty"`
 }
 
+// Span 跨度
 type Span struct {
 	TraceID             string           `json:"traceId,omitempty"`
 	Name                string           `json:"name,omitempty"`
@@ -116,6 +139,7 @@ type Span struct {
 	EndTime             *time.Time       `json:"endTime,omitempty"`
 }
 
+// Event 事件
 type Event struct {
 	TraceID             string           `json:"traceId,omitempty"`
 	Name                string           `json:"name,omitempty"`

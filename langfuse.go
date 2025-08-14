@@ -17,12 +17,14 @@ const (
 	retryInterval        = 3
 )
 
+// Langfuse 跟踪对象
 type Langfuse struct {
 	flushInterval time.Duration
 	client        *api.Client
 	observer      *observer.Observer[model.IngestionEvent]
 }
 
+// New 创建一个新的Langfuse
 func New(ctx context.Context) *Langfuse {
 	client := api.New()
 	l := &Langfuse{
@@ -62,6 +64,7 @@ func ingest(ctx context.Context, client *api.Client, events []model.IngestionEve
 	return client.Ingestion(ctx, &req, &res)
 }
 
+// Trace 构建跟踪
 func (l *Langfuse) Trace(t *model.Trace) (*model.Trace, error) {
 	t.ID = buildID(&t.ID)
 	l.observer.Dispatch(
@@ -75,6 +78,7 @@ func (l *Langfuse) Trace(t *model.Trace) (*model.Trace, error) {
 	return t, nil
 }
 
+// TraceWithTime 构建跟踪并指定时间戳
 func (l *Langfuse) TraceWithTime(t *model.Trace, timestamp time.Time) (*model.Trace, error) {
 	t.ID = buildID(&t.ID)
 	l.observer.Dispatch(
@@ -88,6 +92,7 @@ func (l *Langfuse) TraceWithTime(t *model.Trace, timestamp time.Time) (*model.Tr
 	return t, nil
 }
 
+// Generation 构建生成
 func (l *Langfuse) Generation(g *model.Generation, parentID *string) (*model.Generation, error) {
 	if g.TraceID == "" {
 		traceID, err := l.createTrace(g.Name)
@@ -115,6 +120,7 @@ func (l *Langfuse) Generation(g *model.Generation, parentID *string) (*model.Gen
 	return g, nil
 }
 
+// GenerationWithTime 构建生成并指定时间戳
 func (l *Langfuse) GenerationWithTime(g *model.Generation, parentID *string, timestamp time.Time) (*model.Generation, error) {
 	if g.TraceID == "" {
 		traceID, err := l.createTrace(g.Name)
@@ -142,6 +148,7 @@ func (l *Langfuse) GenerationWithTime(g *model.Generation, parentID *string, tim
 	return g, nil
 }
 
+// GenerationEnd 结束一个生成
 func (l *Langfuse) GenerationEnd(g *model.Generation) (*model.Generation, error) {
 	if g.ID == "" {
 		return nil, fmt.Errorf("generation ID is required")
@@ -163,6 +170,7 @@ func (l *Langfuse) GenerationEnd(g *model.Generation) (*model.Generation, error)
 	return g, nil
 }
 
+// GenerationEndWithTime 结束一个生成并指定时间戳
 func (l *Langfuse) GenerationEndWithTime(g *model.Generation, timestamp time.Time) (*model.Generation, error) {
 	if g.ID == "" {
 		return nil, fmt.Errorf("generation ID is required")
@@ -183,6 +191,7 @@ func (l *Langfuse) GenerationEndWithTime(g *model.Generation, timestamp time.Tim
 	return g, nil
 }
 
+// Score 构建分数
 func (l *Langfuse) Score(s *model.Score) (*model.Score, error) {
 	if s.TraceID == "" {
 		return nil, fmt.Errorf("trace ID is required")
@@ -200,6 +209,7 @@ func (l *Langfuse) Score(s *model.Score) (*model.Score, error) {
 	return s, nil
 }
 
+// Span 构建span
 func (l *Langfuse) Span(s *model.Span, parentID *string) (*model.Span, error) {
 	if s.TraceID == "" {
 		traceID, err := l.createTrace(s.Name)
@@ -228,6 +238,7 @@ func (l *Langfuse) Span(s *model.Span, parentID *string) (*model.Span, error) {
 	return s, nil
 }
 
+// SpanEnd 结束一个span
 func (l *Langfuse) SpanEnd(s *model.Span) (*model.Span, error) {
 	if s.ID == "" {
 		return nil, fmt.Errorf("generation ID is required")
@@ -249,6 +260,7 @@ func (l *Langfuse) SpanEnd(s *model.Span) (*model.Span, error) {
 	return s, nil
 }
 
+// Event 构建事件
 func (l *Langfuse) Event(e *model.Event, parentID *string) (*model.Event, error) {
 	if e.TraceID == "" {
 		traceID, err := l.createTrace(e.Name)
@@ -290,10 +302,12 @@ func (l *Langfuse) createTrace(traceName string) (string, error) {
 	return trace.ID, fmt.Errorf("unable to get trace ID")
 }
 
+// Flush 资源清理，等待所有观察者事件发送完成
 func (l *Langfuse) Flush(ctx context.Context) {
 	l.observer.Wait(ctx)
 }
 
+// buildID 构建ID
 func buildID(id *string) string {
 	if id == nil {
 		return uuid.New().String()

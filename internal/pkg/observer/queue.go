@@ -7,12 +7,14 @@ type queue[T any] struct {
 	items []T
 }
 
+// Enqueue 入队
 func (q *queue[T]) Enqueue(item T) {
 	q.Lock()
 	defer q.Unlock()
 	q.items = append(q.items, item)
 }
 
+// Dequeue 出队
 func (q *queue[T]) Dequeue() T {
 	q.Lock()
 	defer q.Unlock()
@@ -25,6 +27,7 @@ func (q *queue[T]) Dequeue() T {
 	return item
 }
 
+// Len 长度
 func (q *queue[T]) Len() int {
 	q.Lock()
 	defer q.Unlock()
@@ -35,12 +38,14 @@ func newQueue[T any]() *queue[T] {
 	return &queue[T]{}
 }
 
+// Clear 清空
 func (q *queue[T]) Clear() {
 	q.Lock()
 	defer q.Unlock()
 	q.items = []T{}
 }
 
+// All 获取所有
 func (q *queue[T]) All() []T {
 	q.Lock()
 	defer q.Unlock()
