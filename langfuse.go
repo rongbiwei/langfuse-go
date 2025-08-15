@@ -2,6 +2,7 @@ package langfuse
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -15,6 +16,8 @@ import (
 const (
 	defaultFlushInterval = 500 * time.Millisecond
 	retryInterval        = 3
+	// batchSize 每次批量发送的数据量
+	batchSize = 3 * 1024 * 1024
 )
 
 // Langfuse 跟踪对象
@@ -34,20 +37,45 @@ func New(ctx context.Context) *Langfuse {
 			ctx,
 			func(ctx context.Context, events []model.IngestionEvent) []model.IngestionEvent {
 				failEvents := make([]model.IngestionEvent, 0)
-				for _, e := range events {
-					if err := ingest(ctx, client, []model.IngestionEvent{e}); err != nil {
-						log.Println("ingest error:" + err.Error())
-						if e.FailCount < 3 {
-							e.FailCount++
-							failEvents = append(failEvents, e)
-						}
-					}
-				}
+				pushData(ctx, client, 0, events, failEvents)
 				return failEvents
 			},
 		),
 	}
 	return l
+}
+
+// pushData 推送数据
+func pushData(ctx context.Context, client *api.Client, index int, events, failEvents []model.IngestionEvent) {
+	if index >= len(events) {
+		return
+	}
+	batchData := make([]model.IngestionEvent, 0)
+	currentSize := 0
+	for i := index; i < len(events); i++ {
+		byteArr, _ := json.Marshal(events[i])
+		if currentSize+len(byteArr) > batchSize {
+			if i == index {
+				// 單條數據超過大小
+				batchData = append(batchData, events[i])
+				index++
+			}
+			break
+		}
+		currentSize += len(byteArr)
+		index++
+	}
+	if err := ingest(ctx, client, batchData); err != nil {
+		log.Println("ingest error:" + err.Error())
+		for _, e := range batchData {
+			if e.FailCount < 3 {
+				e.FailCount++
+				failEvents = append(failEvents, e)
+			}
+		}
+	}
+	time.Sleep(time.Millisecond * 500)
+	pushData(ctx, client, index, events, failEvents)
 }
 
 func (l *Langfuse) WithFlushInterval(d time.Duration) *Langfuse {
@@ -83,9 +111,9 @@ func (l *Langfuse) TraceWithTime(t *model.Trace, timestamp time.Time) (*model.Tr
 	t.ID = buildID(&t.ID)
 	l.observer.Dispatch(
 		model.IngestionEvent{
-			ID:        buildID(nil),
+			ID:        t.ID,
 			Type:      model.IngestionEventTypeTraceCreate,
-			Timestamp: timestamp.UTC(),
+			Timestamp: timestamp,
 			Body:      t,
 		},
 	)
@@ -113,7 +141,7 @@ func (l *Langfuse) Generation(g *model.Generation, parentID *string) (*model.Gen
 		model.IngestionEvent{
 			ID:        buildID(nil),
 			Type:      model.IngestionEventTypeGenerationCreate,
-			Timestamp: time.Now().UTC(),
+			Timestamp: time.Now(),
 			Body:      g,
 		},
 	)
@@ -141,7 +169,7 @@ func (l *Langfuse) GenerationWithTime(g *model.Generation, parentID *string, tim
 		model.IngestionEvent{
 			ID:        buildID(nil),
 			Type:      model.IngestionEventTypeGenerationCreate,
-			Timestamp: timestamp.UTC(),
+			Timestamp: timestamp,
 			Body:      g,
 		},
 	)
@@ -184,7 +212,7 @@ func (l *Langfuse) GenerationEndWithTime(g *model.Generation, timestamp time.Tim
 		model.IngestionEvent{
 			ID:        buildID(nil),
 			Type:      model.IngestionEventTypeGenerationUpdate,
-			Timestamp: timestamp.UTC(),
+			Timestamp: timestamp,
 			Body:      g,
 		},
 	)
