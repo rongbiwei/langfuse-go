@@ -37,6 +37,9 @@ func New(ctx context.Context) *Langfuse {
 			ctx,
 			func(ctx context.Context, events []model.IngestionEvent) []model.IngestionEvent {
 				failEvents := make([]model.IngestionEvent, 0)
+				if len(events) == 0 {
+					return nil
+				}
 				pushData(ctx, client, 0, events, failEvents)
 				return failEvents
 			},
@@ -47,7 +50,7 @@ func New(ctx context.Context) *Langfuse {
 
 // pushData 推送数据
 func pushData(ctx context.Context, client *api.Client, index int, events, failEvents []model.IngestionEvent) {
-	if index >= len(events) {
+	if index >= len(events) || len(events) == 0 {
 		return
 	}
 	batchData := make([]model.IngestionEvent, 0)
@@ -63,6 +66,7 @@ func pushData(ctx context.Context, client *api.Client, index int, events, failEv
 			break
 		}
 		currentSize += len(byteArr)
+		batchData = append(batchData, events[i])
 		index++
 	}
 	if err := ingest(ctx, client, batchData); err != nil {
@@ -167,7 +171,7 @@ func (l *Langfuse) GenerationWithTime(g *model.Generation, parentID *string, tim
 
 	l.observer.Dispatch(
 		model.IngestionEvent{
-			ID:        buildID(nil),
+			ID:        g.ID,
 			Type:      model.IngestionEventTypeGenerationCreate,
 			Timestamp: timestamp,
 			Body:      g,
@@ -210,7 +214,7 @@ func (l *Langfuse) GenerationEndWithTime(g *model.Generation, timestamp time.Tim
 
 	l.observer.Dispatch(
 		model.IngestionEvent{
-			ID:        buildID(nil),
+			ID:        g.ID,
 			Type:      model.IngestionEventTypeGenerationUpdate,
 			Timestamp: timestamp,
 			Body:      g,
