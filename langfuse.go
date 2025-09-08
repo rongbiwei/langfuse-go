@@ -25,14 +25,17 @@ type Langfuse struct {
 	flushInterval time.Duration
 	client        *api.Client
 	observer      *observer.Observer[model.IngestionEvent]
+	location      *time.Location
 }
 
 // New 创建一个新的Langfuse
 func New(ctx context.Context) *Langfuse {
 	client := api.New()
+	loc, _ := time.LoadLocation("Asia/Shanghai")
 	l := &Langfuse{
 		flushInterval: defaultFlushInterval,
 		client:        client,
+		location:      loc,
 		observer: observer.NewObserver(
 			ctx,
 			func(ctx context.Context, events []model.IngestionEvent) []model.IngestionEvent {
@@ -99,11 +102,15 @@ func ingest(ctx context.Context, client *api.Client, events []model.IngestionEve
 // Trace 构建跟踪
 func (l *Langfuse) Trace(t *model.Trace) (*model.Trace, error) {
 	t.ID = buildID(&t.ID)
+	now := time.Now()
+	if l.location != nil {
+		now = now.In(l.location)
+	}
 	l.observer.Dispatch(
 		model.IngestionEvent{
 			ID:        buildID(nil),
 			Type:      model.IngestionEventTypeTraceCreate,
-			Timestamp: time.Now().UTC(),
+			Timestamp: now,
 			Body:      t,
 		},
 	)
@@ -140,12 +147,15 @@ func (l *Langfuse) Generation(g *model.Generation, parentID *string) (*model.Gen
 	if parentID != nil {
 		g.ParentObservationID = *parentID
 	}
-
+	now := time.Now()
+	if l.location != nil {
+		now = now.In(l.location)
+	}
 	l.observer.Dispatch(
 		model.IngestionEvent{
 			ID:        buildID(nil),
 			Type:      model.IngestionEventTypeGenerationCreate,
-			Timestamp: time.Now(),
+			Timestamp: now,
 			Body:      g,
 		},
 	)
@@ -189,12 +199,15 @@ func (l *Langfuse) GenerationEnd(g *model.Generation) (*model.Generation, error)
 	if g.TraceID == "" {
 		return nil, fmt.Errorf("trace ID is required")
 	}
-
+	now := time.Now()
+	if l.location != nil {
+		now = now.In(l.location)
+	}
 	l.observer.Dispatch(
 		model.IngestionEvent{
 			ID:        buildID(nil),
 			Type:      model.IngestionEventTypeGenerationUpdate,
-			Timestamp: time.Now().UTC(),
+			Timestamp: now,
 			Body:      g,
 		},
 	)
@@ -229,12 +242,15 @@ func (l *Langfuse) Score(s *model.Score) (*model.Score, error) {
 		return nil, fmt.Errorf("trace ID is required")
 	}
 	s.ID = buildID(&s.ID)
-
+	now := time.Now()
+	if l.location != nil {
+		now = now.In(l.location)
+	}
 	l.observer.Dispatch(
 		model.IngestionEvent{
 			ID:        buildID(nil),
 			Type:      model.IngestionEventTypeScoreCreate,
-			Timestamp: time.Now().UTC(),
+			Timestamp: now,
 			Body:      s,
 		},
 	)
@@ -257,12 +273,15 @@ func (l *Langfuse) Span(s *model.Span, parentID *string) (*model.Span, error) {
 	if parentID != nil {
 		s.ParentObservationID = *parentID
 	}
-
+	now := time.Now()
+	if l.location != nil {
+		now = now.In(l.location)
+	}
 	l.observer.Dispatch(
 		model.IngestionEvent{
 			ID:        buildID(nil),
 			Type:      model.IngestionEventTypeSpanCreate,
-			Timestamp: time.Now().UTC(),
+			Timestamp: now,
 			Body:      s,
 		},
 	)
@@ -279,12 +298,15 @@ func (l *Langfuse) SpanEnd(s *model.Span) (*model.Span, error) {
 	if s.TraceID == "" {
 		return nil, fmt.Errorf("trace ID is required")
 	}
-
+	now := time.Now()
+	if l.location != nil {
+		now = now.In(l.location)
+	}
 	l.observer.Dispatch(
 		model.IngestionEvent{
 			ID:        buildID(nil),
 			Type:      model.IngestionEventTypeSpanUpdate,
-			Timestamp: time.Now().UTC(),
+			Timestamp: now,
 			Body:      s,
 		},
 	)
@@ -308,12 +330,15 @@ func (l *Langfuse) Event(e *model.Event, parentID *string) (*model.Event, error)
 	if parentID != nil {
 		e.ParentObservationID = *parentID
 	}
-
+	now := time.Now()
+	if l.location != nil {
+		now = now.In(l.location)
+	}
 	l.observer.Dispatch(
 		model.IngestionEvent{
 			ID:        uuid.New().String(),
 			Type:      model.IngestionEventTypeEventCreate,
-			Timestamp: time.Now().UTC(),
+			Timestamp: now,
 			Body:      e,
 		},
 	)
