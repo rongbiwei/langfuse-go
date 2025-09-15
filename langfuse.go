@@ -81,7 +81,6 @@ func pushData(ctx context.Context, client *api.Client, index int, events, failEv
 			}
 		}
 	}
-	time.Sleep(time.Millisecond * 500)
 	pushData(ctx, client, index, events, failEvents)
 }
 
