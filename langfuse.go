@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,7 +44,7 @@ func New(ctx context.Context) *Langfuse {
 				if len(events) == 0 {
 					return nil
 				}
-				pushData(ctx, client, 0, events, failEvents)
+				pushDataBatch(ctx, client, events, failEvents)
 				return failEvents
 			},
 		),
@@ -82,6 +83,53 @@ func pushData(ctx context.Context, client *api.Client, index int, events, failEv
 		}
 	}
 	pushData(ctx, client, index, events, failEvents)
+}
+
+// pushDataBatch 推送数据--- 批量
+func pushDataBatch(ctx context.Context, client *api.Client, events, failEvents []model.IngestionEvent) {
+	var wg sync.WaitGroup
+	maxGoroutines, index := 5, 0
+	goroutineSemaphore := make(chan struct{}, maxGoroutines)
+
+	for index < len(events) && len(events) > 0 {
+		batchData := make([]model.IngestionEvent, 0)
+		currentSize := 0
+		for i := index; i < len(events); i++ {
+			byteArr, _ := json.Marshal(events[i])
+			if currentSize+len(byteArr) > batchSize {
+				if i == index {
+					// 單條數據超過大小
+					batchData = append(batchData, events[i])
+					index++
+				}
+				break
+			}
+			currentSize += len(byteArr)
+			batchData = append(batchData, events[i])
+			index++
+		}
+
+		if len(batchData) > 0 {
+			goroutineSemaphore <- struct{}{}
+			wg.Add(1)
+			go func(batch []model.IngestionEvent) {
+				defer func() {
+					<-goroutineSemaphore
+					wg.Done()
+				}()
+				if err := ingest(ctx, client, batch); err != nil {
+					log.Println("ingest error:" + err.Error())
+					for _, e := range batch {
+						if e.FailCount < 3 {
+							e.FailCount++
+							failEvents = append(failEvents, e)
+						}
+					}
+				}
+			}(batchData)
+		}
+	}
+	wg.Wait()
 }
 
 func (l *Langfuse) WithFlushInterval(d time.Duration) *Langfuse {
