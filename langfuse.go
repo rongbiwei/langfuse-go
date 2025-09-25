@@ -30,7 +30,7 @@ type Langfuse struct {
 }
 
 // New 创建一个新的Langfuse
-func New(ctx context.Context) *Langfuse {
+func New(ctx context.Context, parallel int) *Langfuse {
 	client := api.New()
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	l := &Langfuse{
@@ -44,7 +44,7 @@ func New(ctx context.Context) *Langfuse {
 				if len(events) == 0 {
 					return nil
 				}
-				pushDataBatch(ctx, client, events, failEvents)
+				pushDataBatch(ctx, parallel, client, events, failEvents)
 				return failEvents
 			},
 		),
@@ -86,9 +86,12 @@ func pushData(ctx context.Context, client *api.Client, index int, events, failEv
 }
 
 // pushDataBatch 推送数据--- 批量
-func pushDataBatch(ctx context.Context, client *api.Client, events, failEvents []model.IngestionEvent) {
+func pushDataBatch(ctx context.Context, parallel int, client *api.Client, events, failEvents []model.IngestionEvent) {
+	if parallel <= 0 {
+		parallel = 5
+	}
 	var wg sync.WaitGroup
-	maxGoroutines, index := 5, 0
+	maxGoroutines, index := parallel, 0
 	goroutineSemaphore := make(chan struct{}, maxGoroutines)
 
 	for index < len(events) && len(events) > 0 {
@@ -119,12 +122,12 @@ func pushDataBatch(ctx context.Context, client *api.Client, events, failEvents [
 				}()
 				if err := ingest(ctx, client, batch); err != nil {
 					log.Println("ingest error:" + err.Error())
-					for _, e := range batch {
-						if e.FailCount < 3 {
-							e.FailCount++
-							failEvents = append(failEvents, e)
-						}
-					}
+					//for _, e := range batch {
+					//	if e.FailCount < 3 {
+					//		e.FailCount++
+					//		failEvents = append(failEvents, e)
+					//	}
+					//}
 				}
 			}(batchData)
 		}
