@@ -88,7 +88,7 @@ func pushData(ctx context.Context, client *api.Client, index int, events []model
 // pushDataBatch 推送数据--- 批量
 func pushDataBatch(ctx context.Context, parallel int, client *api.Client, events []model.IngestionEvent, failEvents *[]model.IngestionEvent) {
 	if parallel <= 0 {
-		parallel = 5
+		parallel = 2
 	}
 	var wg sync.WaitGroup
 	var mu sync.Mutex
