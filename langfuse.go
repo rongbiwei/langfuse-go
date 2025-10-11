@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/rongbiwei/langfuse-go/internal/pkg/log"
 	"sync"
 	"time"
 
@@ -44,7 +44,7 @@ func New(ctx context.Context, parallel int) *Langfuse {
 				if len(events) == 0 {
 					return nil
 				}
-				pushDataBatch(ctx, parallel, client, events, failEvents)
+				pushDataBatch(ctx, parallel, client, events, &failEvents)
 				return failEvents
 			},
 		),
@@ -53,7 +53,7 @@ func New(ctx context.Context, parallel int) *Langfuse {
 }
 
 // pushData 推送数据
-func pushData(ctx context.Context, client *api.Client, index int, events, failEvents []model.IngestionEvent) {
+func pushData(ctx context.Context, client *api.Client, index int, events []model.IngestionEvent, failEvents *[]model.IngestionEvent) {
 	if index >= len(events) || len(events) == 0 {
 		return
 	}
@@ -74,11 +74,11 @@ func pushData(ctx context.Context, client *api.Client, index int, events, failEv
 		index++
 	}
 	if err := ingest(ctx, client, batchData); err != nil {
-		log.Println("ingest error:" + err.Error())
+		log.Errorf(ctx, "ingest error: %s", err.Error())
 		for _, e := range batchData {
 			if e.FailCount < 3 {
 				e.FailCount++
-				failEvents = append(failEvents, e)
+				*failEvents = append(*failEvents, e)
 			}
 		}
 	}
@@ -86,11 +86,12 @@ func pushData(ctx context.Context, client *api.Client, index int, events, failEv
 }
 
 // pushDataBatch 推送数据--- 批量
-func pushDataBatch(ctx context.Context, parallel int, client *api.Client, events, failEvents []model.IngestionEvent) {
+func pushDataBatch(ctx context.Context, parallel int, client *api.Client, events []model.IngestionEvent, failEvents *[]model.IngestionEvent) {
 	if parallel <= 0 {
 		parallel = 5
 	}
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 	maxGoroutines, index := parallel, 0
 	goroutineSemaphore := make(chan struct{}, maxGoroutines)
 
@@ -121,13 +122,15 @@ func pushDataBatch(ctx context.Context, parallel int, client *api.Client, events
 					wg.Done()
 				}()
 				if err := ingest(ctx, client, batch); err != nil {
-					log.Println("ingest error:" + err.Error())
-					//for _, e := range batch {
-					//	if e.FailCount < 3 {
-					//		e.FailCount++
-					//		failEvents = append(failEvents, e)
-					//	}
-					//}
+					log.Errorf(ctx, "ingest error: %s", err.Error())
+					mu.Lock()
+					for _, e := range batch {
+						if e.FailCount < 3 {
+							e.FailCount++
+							*failEvents = append(*failEvents, e)
+						}
+					}
+					mu.Unlock()
 				}
 			}(batchData)
 		}
