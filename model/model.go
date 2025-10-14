@@ -83,11 +83,12 @@ type Usage struct {
 	OutputCost float64   `json:"outputCost,omitempty"`
 	TotalCost  float64   `json:"totalCost,omitempty"`
 
-	PromptTokens          int `json:"promptTokens,omitempty"`
-	CompletionTokens      int `json:"completionTokens,omitempty"`
-	TotalTokens           int `json:"totalTokens,omitempty"`
-	PromptCacheHitTokens  int `json:"promptCacheHitTokens,omitempty"`
-	PromptCacheMissTokens int `json:"promptCacheMissTokens,omitempty"`
+	PromptTokens           int `json:"promptTokens,omitempty"`
+	CompletionTokens       int `json:"completionTokens,omitempty"`
+	TotalTokens            int `json:"totalTokens,omitempty"`
+	PromptCacheHitTokens   int `json:"promptCacheHitTokens,omitempty"`
+	PromptCacheMissTokens  int `json:"promptCacheMissTokens,omitempty"`
+	PromptCacheWriteTokens int `json:"promptCacheWriteTokens,omitempty"`
 
 	CompletionAcceptedPredictionTokens int `json:"completionAcceptedPredictionTokens,omitempty"`
 	CompletionAudioTokens              int `json:"completionAudioTokens,omitempty"`
