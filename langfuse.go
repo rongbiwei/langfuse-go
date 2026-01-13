@@ -16,7 +16,6 @@ import (
 
 const (
 	defaultFlushInterval = 500 * time.Millisecond
-	retryInterval        = 3
 	// batchSize 每次批量发送的数据量
 	batchSize = 3 * 1024 * 1024
 )
@@ -40,49 +39,15 @@ func New(ctx context.Context, parallel int) *Langfuse {
 		observer: observer.NewObserver(
 			ctx,
 			func(ctx context.Context, events []model.IngestionEvent) []model.IngestionEvent {
-				failEvents := make([]model.IngestionEvent, 0)
 				if len(events) == 0 {
 					return nil
 				}
-				pushDataBatch(ctx, parallel, client, events, &failEvents)
-				return failEvents
+				pushDataBatch(ctx, parallel, client, events, nil)
+				return nil
 			},
 		),
 	}
 	return l
-}
-
-// pushData 推送数据
-func pushData(ctx context.Context, client *api.Client, index int, events []model.IngestionEvent, failEvents *[]model.IngestionEvent) {
-	if index >= len(events) || len(events) == 0 {
-		return
-	}
-	batchData := make([]model.IngestionEvent, 0)
-	currentSize := 0
-	for i := index; i < len(events); i++ {
-		byteArr, _ := json.Marshal(events[i])
-		if currentSize+len(byteArr) > batchSize {
-			if i == index {
-				// 單條數據超過大小
-				batchData = append(batchData, events[i])
-				index++
-			}
-			break
-		}
-		currentSize += len(byteArr)
-		batchData = append(batchData, events[i])
-		index++
-	}
-	if err := ingest(ctx, client, batchData); err != nil {
-		log.Errorf(ctx, "ingest error: %s", err.Error())
-		for _, e := range batchData {
-			if e.FailCount < 3 {
-				e.FailCount++
-				*failEvents = append(*failEvents, e)
-			}
-		}
-	}
-	pushData(ctx, client, index, events, failEvents)
 }
 
 // pushDataBatch 推送数据--- 批量
@@ -91,7 +56,6 @@ func pushDataBatch(ctx context.Context, parallel int, client *api.Client, events
 		parallel = 2
 	}
 	var wg sync.WaitGroup
-	var mu sync.Mutex
 	maxGoroutines, index := parallel, 0
 	goroutineSemaphore := make(chan struct{}, maxGoroutines)
 
@@ -123,14 +87,6 @@ func pushDataBatch(ctx context.Context, parallel int, client *api.Client, events
 				}()
 				if err := ingest(ctx, client, batch); err != nil {
 					log.Errorf(ctx, "ingest error: %s", err.Error())
-					mu.Lock()
-					for _, e := range batch {
-						if e.FailCount < 3 {
-							e.FailCount++
-							*failEvents = append(*failEvents, e)
-						}
-					}
-					mu.Unlock()
 				}
 			}(batchData)
 		}
@@ -345,7 +301,7 @@ func (l *Langfuse) Span(s *model.Span, parentID *string) (*model.Span, error) {
 // SpanEnd 结束一个span
 func (l *Langfuse) SpanEnd(s *model.Span) (*model.Span, error) {
 	if s.ID == "" {
-		return nil, fmt.Errorf("generation ID is required")
+		return nil, fmt.Errorf("span ID is required")
 	}
 
 	if s.TraceID == "" {
@@ -409,7 +365,7 @@ func (l *Langfuse) createTrace(traceName string) (string, error) {
 		return "", errTrace
 	}
 
-	return trace.ID, fmt.Errorf("unable to get trace ID")
+	return trace.ID, nil
 }
 
 // Flush 资源清理，等待所有观察者事件发送完成

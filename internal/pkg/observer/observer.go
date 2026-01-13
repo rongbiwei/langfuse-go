@@ -41,7 +41,7 @@ func (o *Observer[T]) Wait(ctx context.Context) {
 	done := make(chan struct{})
 	go func() {
 		o.handler.flushAndWait()
-		done <- struct{}{}
+		close(done)
 	}()
 
 	select {
