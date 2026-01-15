@@ -7,7 +7,7 @@ import (
 
 const (
 	// DefaultMaxMemoryBytes 默认最大内存限制 128MB
-	DefaultMaxMemoryBytes = 128 * 1024 * 1024
+	DefaultMaxMemoryBytes = 50 * 1024 * 1024
 )
 
 type queue[T any] struct {
